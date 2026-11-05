@@ -1,0 +1,109 @@
+generator client {
+ provider = "prisma-client-js"
+}
+datasource db {
+ provider = "sqlite"
+
+}
+model Episode {
+ id Int @id
+ title String?
+ titleSource String?
+ lessons Lesson[]
+ progress LearningProgress?
+}
+model Lesson {
+ id String @id
+ episodeId Int
+ episode Episode @relation(fields:[episodeId],references:[id])
+ title String
+ sourceType String
+ source String
+ cues SubtitleCue[]
+ vocabulary Vocabulary[]
+ phrases Phrase[]
+ grammar GrammarPoint[]
+ exercises Exercise[]
+}
+model SubtitleCue {
+ id String @id
+ lessonId String
+ lesson Lesson @relation(fields:[lessonId],references:[id],onDelete:Cascade)
+ position Int
+ start Float
+ end Float
+ text String
+ translation String
+ sourceType String
+ source String
+ original String
+ @@unique([lessonId,position])
+ @@index([lessonId,start])
+}
+model Vocabulary {
+ id String @id
+ lessonId String
+ lesson Lesson @relation(fields:[lessonId],references:[id])
+ word String
+ ipa String?
+ meaning String
+ data String
+ reviews ReviewSchedule[]
+}
+model Phrase {
+ id String @id
+ lessonId String
+ lesson Lesson @relation(fields:[lessonId],references:[id])
+ text String
+ meaning String
+ source String
+}
+model GrammarPoint {
+ id String @id
+ lessonId String
+ lesson Lesson @relation(fields:[lessonId],references:[id])
+ title String
+ data String
+ source String
+}
+model Exercise {
+ id String @id
+ lessonId String
+ lesson Lesson @relation(fields:[lessonId],references:[id])
+ kind String
+ data String
+ attempts ExerciseAttempt[]
+}
+model ExerciseAttempt {
+ id String @id @default(cuid())
+ exerciseId String
+ exercise Exercise @relation(fields:[exerciseId],references:[id])
+ answer String
+ correct Boolean
+ createdAt DateTime @default(now())
+ @@index([exerciseId,createdAt])
+}
+model LearningProgress {
+ episodeId Int @id
+ episode Episode @relation(fields:[episodeId],references:[id])
+ seconds Float @default(0)
+ completed String @default("[]")
+ updatedAt DateTime @updatedAt
+}
+model ReviewSchedule {
+ id String @id @default(cuid())
+ vocabularyId String @unique
+ vocabulary Vocabulary @relation(fields:[vocabularyId],references:[id])
+ interval Int @default(0)
+ dueAt DateTime @default(now())
+ known Boolean @default(false)
+}
+model UserSettings {
+ id String @id @default("local")
+ data String @default("{}")
+}
+model LocalState {
+ id String @id @default("local")
+ data String
+ updatedAt DateTime @updatedAt
+}

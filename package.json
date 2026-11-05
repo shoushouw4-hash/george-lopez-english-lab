@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "postinstall": "node scripts/generate.mjs && node scripts/init-db.mjs",
-    "dev": "node scripts/init-db.mjs && next dev --webpack --hostname 0.0.0.0",
+    "dev": "node scripts/init-db.mjs && next dev --turbopack --hostname 0.0.0.0",
     "build": "node scripts/generate.mjs && node scripts/init-db.mjs && next build --webpack",
     "start": "next start --hostname 0.0.0.0",
     "db:init": "node scripts/init-db.mjs",

@@ -107,3 +107,42 @@ model LocalState {
  data String
  updatedAt DateTime @updatedAt
 }
+
+// Additive phase 3 tables; original learning tables remain unchanged.
+model MaterialStore {
+ id String @id @default("local")
+ revision Int @default(0)
+ data String
+ updatedAt DateTime @updatedAt
+}
+model MaterialSource {
+ id String @id
+ episodeId Int
+ data String
+ lessons MaterialLesson[]
+ @@index([episodeId])
+}
+model MaterialLesson {
+ id String @id
+ sourceId String
+ source MaterialSource @relation(fields:[sourceId],references:[id],onDelete:Restrict)
+ status String
+ data String
+ entries MaterialEntry[]
+ progress MaterialProgress?
+ @@index([sourceId,status])
+}
+model MaterialEntry {
+ id String @id
+ lessonId String
+ lesson MaterialLesson @relation(fields:[lessonId],references:[id],onDelete:Restrict)
+ kind String
+ approved Boolean @default(false)
+ data String
+ @@index([lessonId,kind])
+}
+model MaterialProgress {
+ lessonId String @id
+ lesson MaterialLesson @relation(fields:[lessonId],references:[id],onDelete:Restrict)
+ data String
+}

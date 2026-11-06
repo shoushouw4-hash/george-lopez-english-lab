@@ -1,0 +1,21 @@
+import {test,expect} from '@playwright/test';
+import {parseSubtitles} from '../lib/learning';
+import {sourceFrom,makeLessons} from '../lib/materials';
+for(const noSpeech of [false,true])test(`字幕独立学习：无需视频完成听写、跟读和测验${noSpeech?'（无朗读支持）':''}`,async({page,request},info)=>{
+ if(noSpeech)await page.addInitScript(()=>{Object.defineProperty(window,'SpeechSynthesisUtterance',{value:undefined,configurable:true});});
+ const oldState=await (await request.get('/api/state')).json();
+ const current=await (await request.get('/api/materials')).json();
+ const raw='1\n00:00:01,000 --> 00:00:04,000\nPlease bring your book and learn English with my family.';
+ const source=sourceFrom(parseSubtitles(raw,'self-authored.srt').cues,raw,`self-authored-${info.project.name}-${crypto.randomUUID()}.srt`);
+ source.cues.forEach(c=>{c.translation='这是自动化测试编写的教学例句。';c.reviewed=true;c.sourceType='teaching_example';});
+ const lesson=makeLessons(source)[0];lesson.entries.forEach(e=>{e.approved=true;e.reference='自编教学测试材料';e.meaning='测试解释';if(e.kind==='phrase')e.text='my family';if(e.kind==='grammar')e.text='祈使句';if(e.kind==='pronunciation')e.text='慢读提示';if(e.kind==='exercise'){e.text='拼写“书”这个单词';e.meaning='book';}});lesson.status='approved';
+ const document={...current.document,sources:[...current.document.sources,source],lessons:[...current.document.lessons,lesson]};expect((await request.put('/api/materials',{data:{revision:current.revision,document}})).ok()).toBeTruthy();
+ await page.goto('/episodes/1');await page.getByRole('button',{name:'教材工坊',exact:true}).click();await page.getByLabel('选择小课程').selectOption(lesson.id);await page.getByRole('button',{name:'进入课程学习',exact:true}).click();
+ await page.getByRole('navigation',{name:'课程学习流程'}).getByRole('button',{name:'听力',exact:true}).click();
+ await expect(page.getByRole('button',{name:'检查听写并继续',exact:true})).toBeEnabled();
+ await expect(page.getByRole('note')).toContainText(noSpeech?'浏览器不支持朗读':'非原剧原声');
+ await page.getByRole('navigation',{name:'课程学习流程'}).getByRole('button',{name:'读字幕',exact:true}).click();await page.getByRole('button',{name:'完成读字幕，学习单词',exact:true}).click();await page.getByRole('button',{name:'完成单词，学习语法',exact:true}).click();await page.getByRole('button',{name:'完成语法，开始听力',exact:true}).click();
+ await page.getByRole('button',{name:'重复播放本句',exact:true}).click();if(noSpeech)await expect(page.getByRole('status')).toContainText('不检验真实听力');
+ await page.getByLabel('教材听写答案').fill('Please bring your book and learn English with my family.');await page.getByRole('button',{name:'检查听写并继续',exact:true}).click();await page.getByRole('button',{name:'我已跟读，进入测验',exact:true}).click();await page.getByLabel('教材测验答案').fill('book');await page.getByRole('button',{name:'提交教材测验',exact:true}).click();await page.getByRole('button',{name:'完成本课复习',exact:true}).click();await page.getByRole('button',{name:'保存教材与进度',exact:true}).click();await expect(page.getByRole('status')).toContainText('已保存到数据库');
+ const saved=await (await request.get('/api/materials')).json();expect(saved.document.progress[lesson.id].done).toHaveLength(7);expect(saved.document.progress[lesson.id].attempts).toHaveLength(1);expect(await (await request.get('/api/state')).json()).toEqual(oldState);
+});
